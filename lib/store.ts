@@ -1,4 +1,4 @@
-import { del, list, put } from "@vercel/blob";
+import { del, get, list, put } from "@vercel/blob";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Recipe, ShoppingList, WeekMenu } from "./types";
@@ -170,7 +170,14 @@ export async function deleteRecipe(id: string): Promise<void> {
   }
 }
 
-/** Stores an already-downscaled image and returns its public URL. */
+/**
+ * Stores an already-downscaled image.
+ *
+ * Photos are private blobs, like everything else here, and are served back
+ * through /api/photo rather than a blob URL. A public blob URL would stay
+ * readable by anyone who ever saw it, including after the recipe is deleted;
+ * this way a photo is behind the same password as the rest of the site.
+ */
 export async function savePhoto(
   data: ArrayBuffer,
   contentType: string,
@@ -185,12 +192,31 @@ export async function savePhoto(
   }
 
   const blob = await put(`${PHOTO_PREFIX}${name}`, Buffer.from(data), {
-    access: "public",
+    access: "private",
     contentType,
     addRandomSuffix: true,
     token,
   });
-  return { url: blob.url, pathname: blob.pathname };
+  return { url: photoUrl(blob.pathname), pathname: blob.pathname };
+}
+
+export function photoUrl(pathname: string): string {
+  return `/api/photo?p=${encodeURIComponent(pathname)}`;
+}
+
+/** True for pathnames this app is allowed to stream back as an image. */
+export function isPhotoPath(pathname: string): boolean {
+  return pathname.startsWith(PHOTO_PREFIX) && !pathname.includes("..");
+}
+
+/** Streams a private photo blob. The route in front of this enforces auth. */
+export async function readPhoto(pathname: string) {
+  if (!token || !isPhotoPath(pathname)) return null;
+  try {
+    return await get(pathname, { access: "private", token });
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------- menus & list

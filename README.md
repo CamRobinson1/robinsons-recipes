@@ -35,11 +35,31 @@ Copy `.env.example` to `.env.local` to set them locally.
 
 ## Deploying
 
-1. `vercel link` (or import the repo in the Vercel dashboard).
-2. In the project's Storage tab, create a Blob store and connect it. That sets
-   `BLOB_READ_WRITE_TOKEN` automatically.
-3. In Settings → Environment Variables, add `RECIPES_PASSWORD` for all environments.
-4. Deploy. Run `vercel env pull .env.local` if you want local dev to hit the same store.
+Already set up. `main` is connected to the Vercel project `cam-robinson/robinsons-recipes`,
+so pushing deploys:
+
+```bash
+git push
+```
+
+Pushes to `main` go to production at https://robinsons-recipes.vercel.app. Pushes to any
+other branch get their own preview URL. To deploy without pushing, run
+`npx vercel deploy --prod` from this directory.
+
+Both env vars are set on all three environments. They are stored as Secrets on Production
+and Preview, and as Config on Development. Development has to stay Config, because
+`vercel env pull` can't read a Secret back, and without the token local dev silently falls
+back to disk storage.
+
+To point local dev at the real store, run `npx vercel env pull .env.local`.
+
+### If you ever rebuild this from scratch
+
+1. `vercel link` to create the project.
+2. `vercel blob create-store <name> --access private --yes` to create and connect storage.
+   That sets `BLOB_READ_WRITE_TOKEN` on every environment.
+3. Add `RECIPES_PASSWORD` in Settings → Environment Variables.
+4. Deploy. Changing an env var needs a redeploy before it takes effect.
 
 ## How it's put together
 
